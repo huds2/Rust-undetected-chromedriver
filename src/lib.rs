@@ -122,11 +122,14 @@ pub async fn chrome_caps(mut caps: ChromeCapabilities) -> Result<WebDriver, Box<
         .unwrap();
     let mut driver = None;
     let mut attempt = 0;
-    while driver.is_none() && attempt < 20 {
+    while driver.is_none() && attempt < 1 {
         attempt += 1;
         match WebDriver::new(&format!("http://localhost:{}", port), caps.clone()).await {
             Ok(d) => driver = Some(d),
-            Err(_) => tokio::time::sleep(std::time::Duration::from_millis(250)).await,
+            Err(e) => {
+                eprintln!("{}", e);
+                tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+            }
         }
     }
     let driver = driver.unwrap();
@@ -151,19 +154,20 @@ async fn fetch_chromedriver(client: &reqwest::Client) -> Result<(), Box<dyn std:
         // Fetch the chromedriver binary
         chromedriver_url = match os {
             "linux" => format!(
-                "https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/{}/{}/{}",
+                "https://storage.googleapis.com/chrome-for-testing-public/{}/{}/{}",
                 version, "linux64", "chromedriver-linux64.zip"
             ),
             "macos" => format!(
-                "https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/{}/{}/{}",
+                "https://storage.googleapis.com/chrome-for-testing-public/{}/{}/{}",
                 version, "mac-x64", "chromedriver-mac-x64.zip"
             ),
             "windows" => format!(
-                "https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/{}/{}/{}",
+                "https://storage.googleapis.com/chrome-for-testing-public/{}/{}/{}",
                 version, "win64", "chromedriver-win64.zip"
             ),
             _ => panic!("Unsupported OS!"),
         };
+        println!("{}", chromedriver_url);
     } else {
         let resp = client
             .get(format!(
@@ -211,9 +215,17 @@ async fn fetch_chromedriver(client: &reqwest::Client) -> Result<(), Box<dyn std:
 async fn get_chrome_version(os: &str) -> Result<String, Box<dyn std::error::Error>> {
     println!("Getting installed Chrome version...");
     let command = match os {
-        "linux" => Command::new("/usr/bin/google-chrome")
-            .arg("--version")
-            .output()?,
+        "linux" => { 
+            let path = if std::path::Path::new("/usr/bin/google-chrome").exists() {
+                "/usr/bin/google-chrome"
+            }
+            else {
+                "/usr/bin/chromium"
+            };
+            Command::new(path)
+                .arg("--version")
+                .output()?
+        },
         "macos" => Command::new("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
             .arg("--version")
             .output()?,
