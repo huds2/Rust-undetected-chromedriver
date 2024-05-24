@@ -122,7 +122,7 @@ pub async fn chrome_caps(mut caps: ChromeCapabilities) -> Result<WebDriver, Box<
         .unwrap();
     let mut driver = None;
     let mut attempt = 0;
-    while driver.is_none() && attempt < 1 {
+    while driver.is_none() && attempt < 20 {
         attempt += 1;
         match WebDriver::new(&format!("http://localhost:{}", port), caps.clone()).await {
             Ok(d) => driver = Some(d),
